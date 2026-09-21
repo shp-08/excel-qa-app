@@ -1,52 +1,56 @@
-# AI-Powered Data Q&A — Write-up
+# AI-Powered Data Q&A: Write-up
 
-**Live app:** _link_ · **Repo:** https://github.com/shp-08/excel-qa-app
+**Live app:** https://ask-excel.streamlit.app/ · **Repo:** https://github.com/shp-08/excel-qa-app
 
 ## Approach
 
-The brief asks for *correct* answers, so the central decision was: **the model never calculates.** An
-open-weight LLM reads the schema plus three sample rows per sheet and writes one SQL query; DuckDB runs
-it; the model words the answer from the result rows. Every uploaded sheet (Excel or CSV) becomes a table
-in one in-memory DuckDB per session, so a cross-file question is simply a SQL join. I scoped to what the
-criteria name and spent the remaining time on reliability rather than features.
+The brief asks for correct answers, so the central decision was that **the model never calculates**. An
+open-weight LLM reads the schema and three sample rows per sheet and writes one SQL query. DuckDB runs
+it, and the model words the answer from the result rows. Every uploaded sheet, from Excel or CSV, becomes
+a table in one in-memory DuckDB per session, so a question across files is a SQL join. I kept the scope to
+the four acceptance criteria and spent the remaining time on reliability.
 
 ## Key decisions
 
-- **Text-to-SQL, not RAG or "data in the prompt".** Retrieval returns similar rows, so a total would be an
-  estimate from a sample. SQL is exact, scales past the context window, and can be shown to the user.
-- **DuckDB.** In-process (nothing to host), columnar, reads DataFrames directly, Postgres-like dialect.
-- **Open models, provider-neutral.** Qwen 3 27B writes SQL, GPT-OSS 20B picks tables, via an
-  OpenAI-compatible client on Groq's free tier; two env vars switch to local Ollama. No LangChain.
-- **Streamlit** for a small working app; all logic sits in plain modules a FastAPI front end could reuse.
+- **Text-to-SQL instead of RAG or data in the prompt.** Retrieval returns similar rows, so a total would
+  be an estimate. SQL is exact, works beyond the context window, and can be shown to the user.
+- **DuckDB.** It runs inside the app with nothing to host, is built for aggregations, reads pandas
+  DataFrames directly, and uses a Postgres-like dialect.
+- **Open-weight models behind an OpenAI-compatible client.** `qwen3.8-27b` writes the SQL and the answer;
+  `gpt-oss-20b` picks the relevant sheets when many are loaded. Both run on Groq's free tier, and
+  environment variables switch the app to a local Ollama model. No LangChain.
+- **Streamlit for the UI.** All logic is in plain Python modules (`excel_qa/`) with no Streamlit code.
 
 ## Delta on top of the AI
 
-Each item came from a real failure I hit while testing:
-
-- **Link detection from data** (unique target + value containment + name agreement for integer ids). My
-  first version compared values only and found 2,610 "links" in a real 22-sheet workbook; this finds the 77 real ones.
-- **Join verification.** Asked for "orders per employee" when no such column existed, the model joined
-  employee id to customer id and returned a tidy table of zeros. Every join is now tested against the
-  data; an empty one is rejected and the model refuses instead.
-- **SQL guardrails.** DuckDB's parser must report exactly one SELECT; `EXPLAIN` catches invented columns
-  and the precise error is fed back for up to two retries; timeout, row cap, file access disabled.
-- **Honest analytics.** "Best versus target" first ranked by raw difference, which favours small groups;
-  rules now force percentages and return the top 5 so the ranking is visible.
-- **Messy input.** Header-row detection, `$1,200` → number, and day-first vs month-first decided per
-  column — per-value parsing had silently turned 1 August into 8 January.
-- **Trust.** Refusals with a reason; every number in the answer sentence is checked against the result
-  and the sentence rewritten if misquoted (it caught 3,205 written as 2,005); SQL and sheets shown.
+- **Links between files, detected from the data:** a unique target column, contained values, and matching
+  names for integer ids. My first version compared values only and found 2,610 links in a real 22-sheet
+  workbook. This version finds the 77 real ones.
+- **Join verification.** Asked for orders per employee when orders had no employee column, the model joined
+  employee id to customer id and returned a table of zeros. Every join is now tested against the data; one
+  that matches no rows is rejected, and the model refuses instead.
+- **SQL checks before running.** DuckDB's parser must report exactly one SELECT. `EXPLAIN` catches invented
+  columns and the error goes back to the model for up to two retries. Queries have a timeout and a row
+  limit, and file access is disabled.
+- **Fair comparisons.** Revenue against target was first ranked by raw difference, which favours small
+  groups. Target comparisons now use percentages, and ranking questions return the top 5.
+- **Messy files.** The loader finds the header row and converts text such as `$1,200` to numbers. Day-first
+  or month-first is decided once per date column; parsing each value alone had read 1 August as 8 January.
+- **Charts chosen from the result:** bars for a breakdown, a line for a trend, one line per group for a
+  split trend, number tiles for a single row, otherwise a table.
+- **Checked answers.** Every number in the answer sentence is compared with the result and the sentence is
+  rewritten on a mismatch, which caught 3,205 written as 2,005. The app refuses with a reason when the data
+  cannot answer, and each answer shows its SQL and the sheets used.
 
 ## Testing
 
-23 automated checks force each failure case with a scripted fake model. **50 questions** were run against
-the real model, each compared with an answer computed independently in pandas: **50 / 50 correct, all
-first attempt** (single file, two and three files, CSV + Excel, trends, comparisons, refusals). The UI was
-checked in a real browser. A perfect score on my own data is a floor, not a guarantee: every bug above
-came from data or phrasing I had not yet tried.
+23 automated checks force each failure case using a scripted fake model. I also ran **50 questions**
+against the real model and compared each result with an answer computed separately in pandas: **50 of 50
+correct, all on the first attempt**, covering one to three files, CSV with Excel, trends, comparisons and
+refusals. The UI was checked in a browser. The test data is my own sample set.
 
 ## What I would build next
 
-Persisted sessions; embedding-based schema retrieval beyond a few hundred sheets; merged headers and
-several tables per sheet; European number formats; the 50-question set as a CI gate for prompt or model
-changes; a clarifying question when a request is ambiguous instead of silently picking one reading.
+Saved sessions, since data is lost on refresh. Embedding-based sheet selection for hundreds of sheets.
+Merged headers, several tables on one sheet, and European number formats. The 50-question set as an
+automatic check whenever a prompt or model changes. A clarifying question when a request is ambiguous.

@@ -4,7 +4,9 @@ Upload one or more **Excel or CSV** files, ask analytical questions in plain Eng
 that are **computed from the data** — including questions that need several sheets or files combined —
 with a chart where the question calls for one.
 
-**Live app:** _add the Streamlit link here after deploying_  ·  **Write-up:** [WRITEUP.md](WRITEUP.md)
+**Live app:** https://ask-excel.streamlit.app/  ·  **Write-up:** [WRITEUP.md](WRITEUP.md)
+
+The app runs on a free hosting tier, so the first load can take about 30 seconds if it has been idle.
 
 ## How it works
 
@@ -51,7 +53,7 @@ computes the answer. If the data cannot answer a question, the app says so inste
 | Runaway queries | 10 second timeout, 5,000 row cap |
 | Empty results | One extra attempt with a hint to check filter values |
 | Unanswerable questions | The model can refuse with a reason; greetings and "what can I ask?" get a conversational reply |
-| Invented numbers in the summary | Every number in the sentence is checked against the result; mismatches are flagged |
+| Invented numbers in the summary | Every number in the answer sentence is checked against the result; if one does not match, the sentence is rewritten |
 | Many sheets | If the schema exceeds a token budget, a cheaper call first picks the relevant sheets (follow-up aware) |
 | Free-tier rate limits | Tight token reservations, a second model for sheet picking, and automatic wait-and-continue shown in the UI |
 | Trust | Every answer shows its SQL, the sheets used, retries and timing |
@@ -63,11 +65,11 @@ Altair (charts) · OpenAI-compatible client. No LangChain or agent framework: a 
 
 **Models** — open weights only, served through any OpenAI-compatible endpoint:
 
-- `qwen/qwen3.8-27b` (Apache 2.0) writes SQL and words answers
-- `openai/gpt-oss-20b` (Apache 2.0) picks relevant sheets and suggests questions
+- `qwen/qwen3.8-27b` writes the SQL and words the answers
+- `openai/gpt-oss-20b` picks the relevant sheets when many are loaded, and suggests questions
 
-Defaults point at Groq's free tier. To run fully local, set `LLM_BASE_URL=http://localhost:11434/v1`
-and an Ollama model name in `.env`.
+Defaults point at Groq's free tier. To run fully local with Ollama, change `LLM_BASE_URL` and `LLM_MODEL`
+in `.env` (an example is included in `.env.example`).
 
 ## Run locally
 
