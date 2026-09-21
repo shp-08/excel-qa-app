@@ -7,8 +7,10 @@
 The brief asks for correct answers, so the central decision was that **the model never calculates**. An
 open-weight LLM reads the schema and three sample rows per sheet and writes one SQL query. DuckDB runs
 it, and the model words the answer from the result rows. Every uploaded sheet, from Excel or CSV, becomes
-a table in one in-memory DuckDB per session, so a question across files is a SQL join. I kept the scope to
-the four acceptance criteria and spent the remaining time on reliability.
+a table in one in-memory DuckDB per session, so a question across files is a SQL join. Users can upload their
+own files, or press one button to load the four linked sample files I included, so the app can be tried
+without preparing any data. I kept the scope to the four acceptance criteria and spent the remaining
+time on reliability.
 
 ## Key decisions
 
@@ -19,7 +21,9 @@ the four acceptance criteria and spent the remaining time on reliability.
 - **Open-weight models behind an OpenAI-compatible client.** `qwen3.8-27b` writes the SQL and the answer;
   `gpt-oss-20b` picks the relevant sheets when many are loaded. Both run on Groq's free tier, and
   environment variables switch the app to a local Ollama model. No LangChain.
-- **Streamlit for the UI.** All logic is in plain Python modules (`excel_qa/`) with no Streamlit code.
+- **Streamlit for the UI, kept separate from the logic.** `app.py` only draws the screen. Reading files,
+  writing and checking SQL, and running it live in the `excel_qa/` folder, which does not depend on
+  Streamlit, so the logic is tested without a browser and the UI could be replaced later.
 
 ## Delta on top of the AI
 
