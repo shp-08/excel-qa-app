@@ -27,6 +27,10 @@ time on reliability.
 
 ## Delta on top of the AI
 
+By delta I mean what the app adds beyond a plain model call. A model alone can write SQL, but it also
+invents columns and joins, misreads messy files and misquotes numbers. Each item below is a problem I
+found and what I built to handle it.
+
 - **Links between files, detected from the data:** a unique target column, contained values, and matching
   names for integer ids. My first version compared values only and found 2,610 links in a real 22-sheet
   workbook. This version finds the 77 real ones.
@@ -55,6 +59,9 @@ refusals. The UI was checked in a browser. The test data is my own sample set.
 
 ## What I would build next
 
-Saved sessions, since data is lost on refresh. Embedding-based sheet selection for hundreds of sheets.
-Merged headers, several tables on one sheet, and European number formats. The 50-question set as an
-automatic check whenever a prompt or model changes. A clarifying question when a request is ambiguous.
+- **Saved sessions.** Data and chat are lost on refresh; I would store the DuckDB file and history per session.
+- **Larger workbooks.** Embedding-based sheet selection once there are hundreds of sheets.
+- **Harder spreadsheets.** Merged headers, several tables on one sheet, and European numbers (`1.200,50`).
+- **Regression testing.** Run the 50-question set automatically whenever a prompt or model changes.
+- **Clarifying questions.** Ask the user when a request is ambiguous instead of choosing one reading.
+- **Production use.** Login, per-user usage limits and a paid model tier to remove the rate limit.
